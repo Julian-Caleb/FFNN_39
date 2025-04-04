@@ -190,6 +190,45 @@ class WeightInitializer:
         b = np.random.normal(mean, std_dev, (1, shape[1]))
         return np.vstack((b, w))
     
+
+    # Kasih penjelasan dikit buat teman2 ku...
+    # Apa itu inisialisasi bobot Xavier dan He? 
+
+    # Xavier
+    # - Inisialisasi bobot Xavier digunakan untuk menjaga stabilitas varians aktivasi dan varians gradien selama training.
+    # - Inisialisasi bobot Xavier melibatkan fan_in (jumlah input / neuron pada input layer) dan fan_out (jumlah output / neuron pada output layer).
+    # - Cocok digunakan untuk fungsi aktivasi linear, tanh, atau sigmoid.
+
+    @staticmethod
+    def xavier_uniform(shape, seed=None):
+        fan_in, fan_out = shape[0], shape[1]
+        variance = 2.0 / (fan_in + fan_out)
+        limit = np.sqrt(3.0 * variance)
+        return WeightInitializer.uniform(shape, lower_bound=-limit, upper_bound=limit, seed=seed)
+
+    @staticmethod
+    def xavier_normal(shape, seed=None):
+        fan_in, fan_out = shape[0], shape[1]
+        variance = 2.0 / (fan_in + fan_out)
+        return WeightInitializer.normal(shape, mean=0.0, variance=variance, seed=seed)
+    
+    # He
+    # - Berbeda dengan Xavier, inisialisasi bobot hanya bergantung pada fan_in (jumlah input / neuron pada input layer).
+    # - Cocok digunakan untuk fungsi aktivasi ReLU.
+
+    @staticmethod
+    def he_uniform(shape, seed=None):
+        fan_in = shape[0]
+        variance = 2.0 / fan_in
+        limit = np.sqrt(3.0 * variance)
+        return WeightInitializer.uniform(shape, lower_bound=-limit, upper_bound=limit, seed=seed)
+
+    @staticmethod
+    def he_normal(shape, seed=None):
+        fan_in = shape[0]
+        variance = 2.0 / fan_in
+        return WeightInitializer.normal(shape, mean=0.0, variance=variance, seed=seed)
+    
     # @staticmethod
     # def initialize_weights(initialization_type: str, shape, bias=1, lower_bound=-0.1, upper_bound=0.1, mean=0.0, variance=1.0, seed=None):
     #     if initialization_type == 'zeros':
@@ -225,33 +264,7 @@ class WeightInitializer:
 # ---------------------------------------------------------------------------------------------------------------
 
 
-# Mencoba membuat FFNN 
-
-# Yang menjadi ketentuan parameter FFNN:
-# - Jumlah layer
-# - Jumlah neuron tiap layer
-# - Fungsi aktivasi tiap layer
-# - Fungsi loss dari model
-# - Metode inisialisasi bobot
-
-# Method FFNN:
-# - Inisialisasi bobot
-# - Menyimpan bobot
-# - Menyimpan gradien bobot
-# - Menampilkan model struktur jaringan, bobot, dan gradien
-# - Menampilkan distribusi bobot
-# - Menampilkan distribusi gradien bobot
-# - Save and load
-# - Forward propagation
-# - Backward propagation
-# - Weight update dengan gradient descent
-
-# Parameter pelatihan FFNN:
-# - Batch size
-# - Learning rate
-# - Jumlah epoch
-# - Verbose
-
+# Mencoba membuat FFNN
 
 class FFNN:
     def __init__(self, layers, activations=None, loss="mse", initialization="uniform", seed=0, batch_size=1, learning_rate=0.01, epochs=10, verbose=1, weights=None, regularization=None, lambda_reg=0.01):
@@ -288,14 +301,24 @@ class FFNN:
    
         for i in range(1, len(self.layers)):
             in_size, out_size = self.layers[i - 1], self.layers[i]
+            shape = (in_size, out_size)
+
             if self.initialization == 'zeros':
-                w = WeightInitializer.zeros((in_size, out_size))
+                w = WeightInitializer.zeros(shape)
             elif self.initialization == 'uniform':
-                w = WeightInitializer.uniform((in_size, out_size), seed=self.seed)
+                w = WeightInitializer.uniform(shape, seed=self.seed)
             elif self.initialization == 'normal':
-                w = WeightInitializer.normal((in_size, out_size), seed=self.seed)
+                w = WeightInitializer.normal(shape, seed=self.seed)
+            elif self.initialization == 'xavier_uniform':
+                w = WeightInitializer.xavier_uniform(shape, seed=self.seed)
+            elif self.initialization == 'xavier_normal':
+                w = WeightInitializer.xavier_normal(shape, seed=self.seed)
+            elif self.initialization == 'he_uniform':
+                w = WeightInitializer.he_uniform(shape, seed=self.seed)
+            elif self.initialization == 'he_normal':
+                w = WeightInitializer.he_normal(shape, seed=self.seed)
             elif self.initialization == 'custom':
-                continue
+                continue    
             else:
                 raise ValueError("Metode inisialisasi tidak valid.")
             
