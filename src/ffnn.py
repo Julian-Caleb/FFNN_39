@@ -263,11 +263,22 @@ class WeightInitializer:
 
 # ---------------------------------------------------------------------------------------------------------------
 
+# Normalisasi dengan menggunakan RMSNorm
+
+class RMSNorm:
+    def __init__(self, epsilon=1e-8):
+        self.epsilon = epsilon
+
+    def normalize(self, x):
+        rms = np.sqrt(np.mean(x**2) + self.epsilon)
+        return x / rms
+
+# ---------------------------------------------------------------------------------------------------------------
 
 # Mencoba membuat FFNN
 
 class FFNN:
-    def __init__(self, layers, activations=None, loss="mse", initialization="uniform", seed=0, batch_size=1, learning_rate=0.01, epochs=10, verbose=1, weights=None, regularization=None, lambda_reg=0.01):
+    def __init__(self, layers, activations=None, loss="mse", initialization="uniform", seed=0, batch_size=1, learning_rate=0.01, epochs=10, verbose=1, weights=None, regularization=None, lambda_reg=0.01, normalization=None):
         # Parameter-parameter
         # Menerima jumlah neuron dari setiap layer (sekaligus jumlah layernya) termasuk input dan output
         self.layers = layers # Contoh: [1, 2, 3]
@@ -290,6 +301,7 @@ class FFNN:
         self.val_losses = []
         self.regularization = regularization
         self.lambda_reg = lambda_reg
+        self.normalization = normalization
         
         # Inisialisasi bias dan bobot, beserta gradiennya
         if self.initialization == 'custom':
@@ -332,6 +344,12 @@ class FFNN:
         for i in range(len(self.weights)):
             values = np.insert(values, 0, 1)  # Add bias term
             z = np.dot(self.weights[i].T , values)
+
+            # New normal eh normalisasi kalau ada
+            if self.normalization == "rmsnorm":
+                rms_norm = RMSNorm()
+                z = rms_norm.normalize(z)
+
             new_values = self.activations[i].forward(z) # Matrix dot multiplication antar weights di layer i dan values
             values = new_values
             self.value_matrix.append(values)
