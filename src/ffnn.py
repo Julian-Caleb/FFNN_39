@@ -1,4 +1,5 @@
-# Tugas Besar 1 IF3270 Pembelajaran Mesin <br /> Feedforward Neural Network
+# Tugas Besar 1 IF3270 Pembelajaran Mesin 
+# Feedforward Neural Network
 
 # Kelompok 39
 
@@ -253,7 +254,7 @@ class WeightInitializer:
 
 
 class FFNN:
-    def __init__(self, layers, activations=None, loss="mse", initialization="uniform", seed=0, batch_size=1, learning_rate=0.01, epochs=10, verbose=1, weights=None):
+    def __init__(self, layers, activations=None, loss="mse", initialization="uniform", seed=0, batch_size=1, learning_rate=0.01, epochs=10, verbose=1, weights=None, regularization=None, lambda_reg=0.01):
         # Parameter-parameter
         # Menerima jumlah neuron dari setiap layer (sekaligus jumlah layernya) termasuk input dan output
         self.layers = layers # Contoh: [1, 2, 3]
@@ -274,6 +275,8 @@ class FFNN:
         self.value_matrix = []
         self.train_losses = []
         self.val_losses = []
+        self.regularization = regularization
+        self.lambda_reg = lambda_reg
         
         # Inisialisasi bias dan bobot, beserta gradiennya
         if self.initialization == 'custom':
@@ -323,15 +326,25 @@ class FFNN:
             self.gradients_w.insert(0, grad)
             errors.append(np.dot(self.weights[i], delta)[1:])  # Hilangkan bias dari propagasi ke belakang
 
+    # Menghitung pinalti regularisasi untuk nanti ditambahkan ke loss
+    def calculate_regularization_penalty(self):
+        penalty = 0
+        if self.regularization == "l1":
+            for w in self.weights:
+                penalty += np.sum(np.abs(w))
+        elif self.regularization == "l2":
+            for w in self.weights:
+                penalty += np.sum(w ** 2)
+        return self.lambda_reg * penalty
     
     def update_weights(self):
         for i in range(len(self.weights)):
-            # if self.verbose:
-            #     print(f"Layer {i}")
-            #     print(f"weights[{i}]: {self.weights[i]}")
-            #     print(f"gradients_w[{i}]: {self.gradients_w[i]}\n")
-            
-            self.weights[i] -= self.learning_rate * self.gradients_w[i] / self.batch_size
+            gradient = self.gradients_w[i] / self.batch_size
+            if self.regularization == "l1":
+                gradient += self.lambda_reg * np.sign(self.weights[i])
+            elif self.regularization == "l2":
+                gradient += 2 * self.lambda_reg * self.weights[i]
+            self.weights[i] -= self.learning_rate * gradient
 
     def train(self, X, y, val_split=0.2):
         X, y = np.array(X), np.array(y)
@@ -372,6 +385,9 @@ class FFNN:
                     for k in range(len(self.weights)):
                         batch_gradients[k] += self.gradients_w[k]
                 
+                if self.regularization:
+                    batch_loss += self.calculate_regularization_penalty()
+                
                 self.gradients_w = batch_gradients
                 self.update_weights()
                 total_loss += batch_loss / len(batch_X)
@@ -389,13 +405,13 @@ class FFNN:
 
             if self.verbose and epoch % 1 == 0:
                 print("Progress: [", end="")
-                for i in range (epoch) :
+                for i in range (epoch + 1) :
                     print("#", end="")
-                for i in range(self.epochs - epoch):
+                for i in range(self.epochs - (epoch + 1)):
                     print("-", end="")
-                print(f"] Epoch {epoch}/{self.epochs}")
+                print(f"] Epoch {epoch + 1}/{self.epochs}")
                     
-                print(f"Epoch {epoch}, Loss: {avg_loss:.5f}, Validation Loss: {avg_val_loss:.5f}") 
+                print(f"Epoch {epoch + 1}, Loss: {avg_loss:.5f}, Validation Loss: {avg_val_loss:.5f}") 
                 
     def plot_loss(self):
         plt.figure(figsize=(10, 6))
