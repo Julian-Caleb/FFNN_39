@@ -13,6 +13,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
+import pickle
 
 # ---------------------------------------------------------------------------------------------------------------
 
@@ -190,6 +191,45 @@ class WeightInitializer:
         b = np.random.normal(mean, std_dev, (1, shape[1]))
         return np.vstack((b, w))
     
+
+    # Kasih penjelasan dikit buat teman2 ku...
+    # Apa itu inisialisasi bobot Xavier dan He? 
+
+    # Xavier
+    # - Inisialisasi bobot Xavier digunakan untuk menjaga stabilitas varians aktivasi dan varians gradien selama training.
+    # - Inisialisasi bobot Xavier melibatkan fan_in (jumlah input / neuron pada input layer) dan fan_out (jumlah output / neuron pada output layer).
+    # - Cocok digunakan untuk fungsi aktivasi linear, tanh, atau sigmoid.
+
+    @staticmethod
+    def xavier_uniform(shape, seed=None):
+        fan_in, fan_out = shape[0], shape[1]
+        variance = 2.0 / (fan_in + fan_out)
+        limit = np.sqrt(3.0 * variance)
+        return WeightInitializer.uniform(shape, lower_bound=-limit, upper_bound=limit, seed=seed)
+
+    @staticmethod
+    def xavier_normal(shape, seed=None):
+        fan_in, fan_out = shape[0], shape[1]
+        variance = 2.0 / (fan_in + fan_out)
+        return WeightInitializer.normal(shape, mean=0.0, variance=variance, seed=seed)
+    
+    # He
+    # - Berbeda dengan Xavier, inisialisasi bobot hanya bergantung pada fan_in (jumlah input / neuron pada input layer).
+    # - Cocok digunakan untuk fungsi aktivasi ReLU.
+
+    @staticmethod
+    def he_uniform(shape, seed=None):
+        fan_in = shape[0]
+        variance = 2.0 / fan_in
+        limit = np.sqrt(3.0 * variance)
+        return WeightInitializer.uniform(shape, lower_bound=-limit, upper_bound=limit, seed=seed)
+
+    @staticmethod
+    def he_normal(shape, seed=None):
+        fan_in = shape[0]
+        variance = 2.0 / fan_in
+        return WeightInitializer.normal(shape, mean=0.0, variance=variance, seed=seed)
+    
     # @staticmethod
     # def initialize_weights(initialization_type: str, shape, bias=1, lower_bound=-0.1, upper_bound=0.1, mean=0.0, variance=1.0, seed=None):
     #     if initialization_type == 'zeros':
@@ -224,37 +264,22 @@ class WeightInitializer:
 
 # ---------------------------------------------------------------------------------------------------------------
 
+# Normalisasi dengan menggunakan RMSNorm
 
-# Mencoba membuat FFNN 
+class RMSNorm:
+    def __init__(self, epsilon=1e-8):
+        self.epsilon = epsilon
 
-# Yang menjadi ketentuan parameter FFNN:
-# - Jumlah layer
-# - Jumlah neuron tiap layer
-# - Fungsi aktivasi tiap layer
-# - Fungsi loss dari model
-# - Metode inisialisasi bobot
+    def normalize(self, x):
+        rms = np.sqrt(np.mean(x**2) + self.epsilon)
+        return x / rms
 
-# Method FFNN:
-# - Inisialisasi bobot
-# - Menyimpan bobot
-# - Menyimpan gradien bobot
-# - Menampilkan model struktur jaringan, bobot, dan gradien
-# - Menampilkan distribusi bobot
-# - Menampilkan distribusi gradien bobot
-# - Save and load
-# - Forward propagation
-# - Backward propagation
-# - Weight update dengan gradient descent
+# ---------------------------------------------------------------------------------------------------------------
 
-# Parameter pelatihan FFNN:
-# - Batch size
-# - Learning rate
-# - Jumlah epoch
-# - Verbose
-
+# Mencoba membuat FFNN
 
 class FFNN:
-    def __init__(self, layers, activations=None, loss="mse", initialization="uniform", seed=0, batch_size=1, learning_rate=0.01, epochs=10, verbose=1, weights=None, regularization=None, lambda_reg=0.01):
+    def __init__(self, layers, activations=None, loss="mse", initialization="uniform", seed=0, batch_size=1, learning_rate=0.01, epochs=10, verbose=1, weights=None, regularization=None, lambda_reg=0.01, normalization=None):
         # Parameter-parameter
         # Menerima jumlah neuron dari setiap layer (sekaligus jumlah layernya) termasuk input dan output
         self.layers = layers # Contoh: [1, 2, 3]
@@ -277,6 +302,7 @@ class FFNN:
         self.val_losses = []
         self.regularization = regularization
         self.lambda_reg = lambda_reg
+        self.normalization = normalization
         
         # Inisialisasi bias dan bobot, beserta gradiennya
         if self.initialization == 'custom':
@@ -288,14 +314,24 @@ class FFNN:
    
         for i in range(1, len(self.layers)):
             in_size, out_size = self.layers[i - 1], self.layers[i]
+            shape = (in_size, out_size)
+
             if self.initialization == 'zeros':
-                w = WeightInitializer.zeros((in_size, out_size))
+                w = WeightInitializer.zeros(shape)
             elif self.initialization == 'uniform':
-                w = WeightInitializer.uniform((in_size, out_size), seed=self.seed)
+                w = WeightInitializer.uniform(shape, seed=self.seed)
             elif self.initialization == 'normal':
-                w = WeightInitializer.normal((in_size, out_size), seed=self.seed)
+                w = WeightInitializer.normal(shape, seed=self.seed)
+            elif self.initialization == 'xavier_uniform':
+                w = WeightInitializer.xavier_uniform(shape, seed=self.seed)
+            elif self.initialization == 'xavier_normal':
+                w = WeightInitializer.xavier_normal(shape, seed=self.seed)
+            elif self.initialization == 'he_uniform':
+                w = WeightInitializer.he_uniform(shape, seed=self.seed)
+            elif self.initialization == 'he_normal':
+                w = WeightInitializer.he_normal(shape, seed=self.seed)
             elif self.initialization == 'custom':
-                continue
+                continue    
             else:
                 raise ValueError("Metode inisialisasi tidak valid.")
             
@@ -309,6 +345,12 @@ class FFNN:
         for i in range(len(self.weights)):
             values = np.insert(values, 0, 1)  # Add bias term
             z = np.dot(self.weights[i].T , values)
+
+            # New normal eh normalisasi kalau ada
+            if self.normalization == "rmsnorm":
+                rms_norm = RMSNorm()
+                z = rms_norm.normalize(z)
+
             new_values = self.activations[i].forward(z) # Matrix dot multiplication antar weights di layer i dan values
             values = new_values
             self.value_matrix.append(values)
@@ -507,7 +549,8 @@ class FFNN:
                     weight_value = weight_matrix[0][next_idx] if prev_neuron.startswith('b') else weight_matrix[prev_idx + 1][next_idx]  
                     edge_labels[(prev_neuron, next_neuron)] = str(weight_value)[:display_size]  
 
-        print(max_height)
+        if len(nodes['output']) > max_height:
+            max_height = len(nodes['output'])
         # Graph
         G = nx.DiGraph()
         G.add_nodes_from(sum(partial_nodes.values(), []))
@@ -536,6 +579,8 @@ class FFNN:
             for j, node in enumerate(nodes_list):
                 pos[node] = (x_offset[i], y_positions[i][j])
 
+        size = max(iterator,max_height)
+        plt.figure(figsize=(min(10,size*2),min(650,size*2)))
         # Draw graph
         node_color = []
         for node in G.nodes():
@@ -577,3 +622,15 @@ class FFNN:
 
     def visualize_gradient_weights(self, start=1, end=None, display_size=5):
         self.visualize_weights(start=start, end=end, display_size=display_size, gradient_graph=True)
+    
+    def save(self, file_path):
+        with open(file_path, 'wb') as f:
+            pickle.dump(self, f)
+        print(f"Model saved to {file_path}")
+    
+    @staticmethod
+    def load(file_path):
+        with open(file_path, 'rb') as f:
+            model = pickle.load(f)
+        print("Model loaded from {file_path}")
+        return model
