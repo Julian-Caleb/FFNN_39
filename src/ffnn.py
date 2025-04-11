@@ -548,7 +548,8 @@ class FFNN:
                     weight_value = weight_matrix[0][next_idx] if prev_neuron.startswith('b') else weight_matrix[prev_idx + 1][next_idx]  
                     edge_labels[(prev_neuron, next_neuron)] = str(weight_value)[:display_size]  
 
-        print(max_height)
+        if len(nodes['output']) > max_height:
+            max_height = len(nodes['output'])
         # Graph
         G = nx.DiGraph()
         G.add_nodes_from(sum(partial_nodes.values(), []))
@@ -577,6 +578,8 @@ class FFNN:
             for j, node in enumerate(nodes_list):
                 pos[node] = (x_offset[i], y_positions[i][j])
 
+        size = max(iterator,max_height)
+        plt.figure(figsize=(min(10,size*2),min(650,size*2)))
         # Draw graph
         node_color = []
         for node in G.nodes():
