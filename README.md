@@ -4,10 +4,10 @@ Tugas Besar I kuliah IF3270 Pembelajaran Mesin: Implementasi Feedforward Neural 
 ## Kelompok 39
 
 - Dzaky Satrio Nugroho - 13522059
-- Julian Caleb Simandjuntak - 13522099
 - Rafiki Prawhira Harianto - 13522065
+- Julian Caleb Simandjuntak - 13522099
 
-## Cara setup dan run
+## Cara Setup dan Run
 
 1. Clone repository
 
